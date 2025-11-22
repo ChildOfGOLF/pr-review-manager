@@ -17,7 +17,7 @@ func NewPRRepository(db *sql.DB) *PRRepository {
 
 func (r *PRRepository) GetPRsByReviewer(userID string) ([]domain.PullRequestShort, error) {
 	rows, err := r.db.Query(`
-		SELECT DISTINCT pr.pull_request_id, pr.pull_request_name, pr.author_id, pr.status
+		SELECT DISTINCT pr.pull_request_id, pr.pull_request_name, pr.author_id, pr.status, pr.created_at
 		FROM pull_requests pr
 		JOIN pr_reviewers prr ON pr.pull_request_id = prr.pull_request_id
 		WHERE prr.user_id = $1
@@ -31,7 +31,8 @@ func (r *PRRepository) GetPRsByReviewer(userID string) ([]domain.PullRequestShor
 	var prs []domain.PullRequestShort
 	for rows.Next() {
 		var pr domain.PullRequestShort
-		if err := rows.Scan(&pr.PullRequestID, &pr.PullRequestName, &pr.AuthorID, &pr.Status); err != nil {
+		var createdAt time.Time
+		if err := rows.Scan(&pr.PullRequestID, &pr.PullRequestName, &pr.AuthorID, &pr.Status, &createdAt); err != nil {
 			return nil, err
 		}
 		prs = append(prs, pr)
