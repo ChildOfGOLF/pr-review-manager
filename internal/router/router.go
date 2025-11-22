@@ -9,7 +9,7 @@ import (
 	"pr-review-manager/internal/handler"
 )
 
-func NewRouter(teamHandler *handler.TeamHandler, userHandler *handler.UserHandler, prHandler *handler.PRHandler) *chi.Mux {
+func NewRouter(teamHandler *handler.TeamHandler, userHandler *handler.UserHandler, prHandler *handler.PRHandler, statsHandler *handler.StatsHandler) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -21,6 +21,8 @@ func NewRouter(teamHandler *handler.TeamHandler, userHandler *handler.UserHandle
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
+
+	r.Get("/stats", statsHandler.GetStats)
 
 	r.Route("/team", func(r chi.Router) {
 		r.Post("/add", teamHandler.AddTeam)

@@ -27,16 +27,19 @@ func main() {
 	teamRepo := repository.NewTeamRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	prRepo := repository.NewPRRepository(db)
+	statsRepo := repository.NewStatsRepository(db)
 
 	teamService := service.NewTeamService(teamRepo, userRepo)
 	userService := service.NewUserService(userRepo, prRepo)
 	prService := service.NewPRService(prRepo, userRepo)
+	statsService := service.NewStatsService(statsRepo)
 
 	teamHandler := handler.NewTeamHandler(teamService)
 	userHandler := handler.NewUserHandler(userService)
 	prHandler := handler.NewPRHandler(prService)
+	statsHandler := handler.NewStatsHandler(statsService)
 
-	r := router.NewRouter(teamHandler, userHandler, prHandler)
+	r := router.NewRouter(teamHandler, userHandler, prHandler, statsHandler)
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", r); err != nil {
