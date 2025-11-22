@@ -56,11 +56,11 @@ func (s *PRService) CreatePR(prID, prName, authorID string) (*domain.PullRequest
 		return nil, err
 	}
 
-	return s.prRepo.GetPR(prID)
+	return s.prRepo.GetPRWithoutTx(prID)
 }
 
 func (s *PRService) MergePR(prID string) (*domain.PullRequest, error) {
-	pr, err := s.prRepo.GetPR(prID)
+	pr, err := s.prRepo.GetPRWithoutTx(prID)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (s *PRService) MergePR(prID string) (*domain.PullRequest, error) {
 }
 
 func (s *PRService) ReassignReviewer(prID, oldReviewerID string) (*domain.PullRequest, string, error) {
-	pr, err := s.prRepo.GetPR(prID)
+	pr, err := s.prRepo.GetPRWithoutTx(prID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -125,7 +125,7 @@ func (s *PRService) ReassignReviewer(prID, oldReviewerID string) (*domain.PullRe
 		return nil, "", err
 	}
 
-	updatedPR, err := s.prRepo.GetPR(prID)
+	updatedPR, err := s.prRepo.GetPRWithoutTx(prID)
 	return updatedPR, newReviewer.UserID, err
 }
 

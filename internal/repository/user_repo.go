@@ -80,3 +80,48 @@ func (r *UserRepository) GetActiveTeamMembers(teamName, excludeUserID string) ([
 	}
 	return users, nil
 }
+
+func (r *UserRepository) DeactivateTeamUsers(tx *sql.Tx, teamName string) ([]string, error) {
+	rows, err := tx.Query(`
+		UPDATE users 
+		SET is_active = false 
+		WHERE team_name = $1 AND is_active = true
+		RETURNING user_id
+	`, teamName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var userIDs []string
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+	return userIDs, nil
+}
+
+func (r *UserRepository) GetActiveUsers(tx *sql.Tx) ([]domain.User, error) {
+	rows, err := tx.Query(`
+		SELECT user_id, username, team_name, is_active 
+		FROM users 
+		WHERE is_active = true
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []domain.User
+	for rows.Next() {
+		var user domain.User
+		if err := rows.Scan(&user.UserID, &user.Username, &user.TeamName, &user.IsActive); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, nil
+}

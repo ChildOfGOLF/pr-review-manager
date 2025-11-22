@@ -27,6 +27,7 @@ func NewRouter(teamHandler *handler.TeamHandler, userHandler *handler.UserHandle
 	r.Route("/team", func(r chi.Router) {
 		r.Post("/add", teamHandler.AddTeam)
 		r.Get("/get", teamHandler.GetTeam)
+		r.Post("/deactivate", teamHandler.DeactivateTeam)
 	})
 
 	r.Route("/users", func(r chi.Router) {

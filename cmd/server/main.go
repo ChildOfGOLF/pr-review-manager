@@ -29,7 +29,7 @@ func main() {
 	prRepo := repository.NewPRRepository(db)
 	statsRepo := repository.NewStatsRepository(db)
 
-	teamService := service.NewTeamService(teamRepo, userRepo)
+	teamService := service.NewTeamService(teamRepo, userRepo, prRepo)
 	userService := service.NewUserService(userRepo, prRepo)
 	prService := service.NewPRService(prRepo, userRepo)
 	statsService := service.NewStatsService(statsRepo)

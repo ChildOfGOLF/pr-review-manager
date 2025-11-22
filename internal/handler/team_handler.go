@@ -51,6 +51,32 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, team)
 }
 
+func (h *TeamHandler) DeactivateTeam(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TeamName string `json:"team_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	if req.TeamName == "" {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "team_name is required")
+		return
+	}
+
+	deactivatedCount, affectedPRs, err := h.teamService.DeactivateTeam(req.TeamName)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"deactivated_users_count": deactivatedCount,
+		"affected_prs_count":      affectedPRs,
+	})
+}
+
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
