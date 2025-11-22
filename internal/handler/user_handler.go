@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"pr-review-manager/internal/service"
@@ -15,9 +16,41 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 }
 
 func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	var req struct {
+		UserID   string `json:"user_id"`
+		IsActive bool   `json:"is_active"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	user, err := h.userService.SetIsActive(req.UserID, req.IsActive)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"user": user,
+	})
 }
 
 func (h *UserHandler) GetReview(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "user_id is required")
+		return
+	}
+
+	prs, err := h.userService.GetReview(userID)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"user_id":       userID,
+		"pull_requests": prs,
+	})
 }
