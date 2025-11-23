@@ -31,7 +31,7 @@ func (r *UserRepository) GetUser(userID string) (*domain.User, error) {
 		FROM users 
 		WHERE user_id = $1
 	`, userID).Scan(&user.UserID, &user.Username, &user.TeamName, &user.IsActive)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -49,7 +49,7 @@ func (r *UserRepository) SetIsActive(userID string, isActive bool) (*domain.User
 		WHERE user_id = $1
 		RETURNING user_id, username, team_name, is_active
 	`, userID, isActive).Scan(&user.UserID, &user.Username, &user.TeamName, &user.IsActive)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

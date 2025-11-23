@@ -1,11 +1,11 @@
 package domain
 
 type Stats struct {
-	TotalPRs       int            `json:"total_prs"`
-	OpenPRs        int            `json:"open_prs"`
-	MergedPRs      int            `json:"merged_prs"`
-	ReviewerStats  []ReviewerStat `json:"reviewer_stats"`
-	PRStats        []PRStat       `json:"pr_stats"`
+	TotalPRs      int            `json:"total_prs"`
+	OpenPRs       int            `json:"open_prs"`
+	MergedPRs     int            `json:"merged_prs"`
+	ReviewerStats []ReviewerStat `json:"reviewer_stats"`
+	PRStats       []PRStat       `json:"pr_stats"`
 }
 
 type ReviewerStat struct {

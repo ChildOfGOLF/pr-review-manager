@@ -46,7 +46,7 @@ func (r *PRRepository) GetOpenPRsWithDeactivatedReviewers(tx *sql.Tx, deactivate
 	if len(deactivatedUserIDs) == 0 {
 		return nil, nil
 	}
-	
+
 	placeholders := make([]string, len(deactivatedUserIDs))
 	args := make([]interface{}, len(deactivatedUserIDs)+1)
 	args[0] = "OPEN"
@@ -54,20 +54,20 @@ func (r *PRRepository) GetOpenPRsWithDeactivatedReviewers(tx *sql.Tx, deactivate
 		placeholders[i] = fmt.Sprintf("$%d", i+2)
 		args[i+1] = userID
 	}
-	
+
 	query := fmt.Sprintf(`
 		SELECT DISTINCT pr.pull_request_id
 		FROM pull_requests pr
 		JOIN pr_reviewers prr ON pr.pull_request_id = prr.pull_request_id
 		WHERE pr.status = $1 AND prr.user_id IN (%s)
 	`, strings.Join(placeholders, ","))
-	
+
 	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var prIDs []string
 	for rows.Next() {
 		var prID string
@@ -83,7 +83,7 @@ func (r *PRRepository) RemoveReviewers(tx *sql.Tx, prID string, reviewerIDs []st
 	if len(reviewerIDs) == 0 {
 		return nil
 	}
-	
+
 	placeholders := make([]string, len(reviewerIDs))
 	args := make([]interface{}, len(reviewerIDs)+1)
 	args[0] = prID
@@ -91,12 +91,12 @@ func (r *PRRepository) RemoveReviewers(tx *sql.Tx, prID string, reviewerIDs []st
 		placeholders[i] = fmt.Sprintf("$%d", i+2)
 		args[i+1] = reviewerID
 	}
-	
+
 	query := fmt.Sprintf(`
 		DELETE FROM pr_reviewers 
 		WHERE pull_request_id = $1 AND user_id IN (%s)
 	`, strings.Join(placeholders, ","))
-	
+
 	_, err := tx.Exec(query, args...)
 	return err
 }
@@ -105,14 +105,14 @@ func (r *PRRepository) RemoveDeactivatedReviewersFromAllPRs(tx *sql.Tx, deactiva
 	if len(deactivatedUserIDs) == 0 {
 		return nil
 	}
-	
+
 	placeholders := make([]string, len(deactivatedUserIDs))
 	args := make([]interface{}, len(deactivatedUserIDs))
 	for i, userID := range deactivatedUserIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = userID
 	}
-	
+
 	query := fmt.Sprintf(`
 		DELETE FROM pr_reviewers 
 		WHERE user_id IN (%s)
@@ -120,7 +120,7 @@ func (r *PRRepository) RemoveDeactivatedReviewersFromAllPRs(tx *sql.Tx, deactiva
 			SELECT pull_request_id FROM pull_requests WHERE status = 'OPEN'
 		)
 	`, strings.Join(placeholders, ","))
-	
+
 	_, err := tx.Exec(query, args...)
 	return err
 }
@@ -133,7 +133,7 @@ func (r *PRRepository) GetPRReviewers(tx *sql.Tx, prID string) ([]string, error)
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var reviewers []string
 	for rows.Next() {
 		var reviewerID string
@@ -155,7 +155,7 @@ func (r *PRRepository) GetPR(tx *sql.Tx, prID string) (*domain.PullRequest, erro
 		FROM pull_requests
 		WHERE pull_request_id = $1
 	`, prID).Scan(&pr.PullRequestID, &pr.PullRequestName, &pr.AuthorID, &pr.Status, &createdAt, &mergedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -215,13 +215,13 @@ func (r *PRRepository) PRExists(prID string) (bool, error) {
 func (r *PRRepository) GetPRWithoutTx(prID string) (*domain.PullRequest, error) {
 	var pr domain.PullRequest
 	var createdAt, mergedAt sql.NullTime
-	
+
 	err := r.db.QueryRow(`
 		SELECT pull_request_id, pull_request_name, author_id, status, created_at, merged_at
 		FROM pull_requests
 		WHERE pull_request_id = $1
 	`, prID).Scan(&pr.PullRequestID, &pr.PullRequestName, &pr.AuthorID, &pr.Status, &createdAt, &mergedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -290,21 +290,21 @@ func (r *PRRepository) BatchAddReviewers(tx *sql.Tx, assignments []struct{ PRID,
 	if len(assignments) == 0 {
 		return nil
 	}
-	
+
 	valueStrings := make([]string, len(assignments))
 	valueArgs := make([]interface{}, len(assignments)*2)
-	
+
 	for i, assignment := range assignments {
 		valueStrings[i] = fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
 		valueArgs[i*2] = assignment.PRID
 		valueArgs[i*2+1] = assignment.UserID
 	}
-	
+
 	query := fmt.Sprintf(`
 		INSERT INTO pr_reviewers (pull_request_id, user_id)
 		VALUES %s
 	`, strings.Join(valueStrings, ","))
-	
+
 	_, err := tx.Exec(query, valueArgs...)
 	return err
 }
@@ -313,36 +313,36 @@ func (r *PRRepository) GetPRsWithReviewers(tx *sql.Tx, prIDs []string) (map[stri
 	if len(prIDs) == 0 {
 		return make(map[string]*domain.PullRequest), nil
 	}
-	
+
 	placeholders := make([]string, len(prIDs))
 	args := make([]interface{}, len(prIDs))
 	for i, prID := range prIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = prID
 	}
-	
+
 	query := fmt.Sprintf(`
 		SELECT pull_request_id, pull_request_name, author_id, status, created_at, merged_at
 		FROM pull_requests
 		WHERE pull_request_id IN (%s)
 	`, strings.Join(placeholders, ","))
-	
+
 	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	prs := make(map[string]*domain.PullRequest)
 	for rows.Next() {
 		var pr domain.PullRequest
 		var createdAt time.Time
 		var mergedAt sql.NullTime
-		
+
 		if err := rows.Scan(&pr.PullRequestID, &pr.PullRequestName, &pr.AuthorID, &pr.Status, &createdAt, &mergedAt); err != nil {
 			return nil, err
 		}
-		
+
 		pr.CreatedAt = &createdAt
 		if mergedAt.Valid {
 			pr.MergedAt = &mergedAt.Time
@@ -350,19 +350,19 @@ func (r *PRRepository) GetPRsWithReviewers(tx *sql.Tx, prIDs []string) (map[stri
 		pr.AssignedReviewers = []string{}
 		prs[pr.PullRequestID] = &pr
 	}
-	
+
 	reviewerQuery := fmt.Sprintf(`
 		SELECT pull_request_id, user_id
 		FROM pr_reviewers
 		WHERE pull_request_id IN (%s)
 	`, strings.Join(placeholders, ","))
-	
+
 	reviewerRows, err := tx.Query(reviewerQuery, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer reviewerRows.Close()
-	
+
 	for reviewerRows.Next() {
 		var prID, userID string
 		if err := reviewerRows.Scan(&prID, &userID); err != nil {
@@ -372,6 +372,6 @@ func (r *PRRepository) GetPRsWithReviewers(tx *sql.Tx, prIDs []string) (map[stri
 			pr.AssignedReviewers = append(pr.AssignedReviewers, userID)
 		}
 	}
-	
+
 	return prs, nil
 }

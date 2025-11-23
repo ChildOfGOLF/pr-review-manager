@@ -135,7 +135,7 @@ func selectRandomReviewers(candidates []domain.User, maxCount int) []string {
 	}
 
 	count := min(len(candidates), maxCount)
-	
+
 	shuffled := make([]domain.User, len(candidates))
 	copy(shuffled, candidates)
 	rand.Shuffle(len(shuffled), func(i, j int) {

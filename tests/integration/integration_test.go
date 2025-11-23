@@ -74,7 +74,7 @@ func TestTeamAndPRFlow(t *testing.T) {
 			{UserID: "u3", Username: "Cat", IsActive: true},
 		},
 	}
-	
+
 	body, _ := json.Marshal(teamPayload)
 	req := httptest.NewRequest("POST", "/team/add", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
@@ -141,7 +141,7 @@ func TestDeactivateTeam(t *testing.T) {
 
 	deactivatePayload := map[string]string{"team_name": "Frontend"}
 	body, _ = json.Marshal(deactivatePayload)
-	
+
 	req := httptest.NewRequest("POST", "/team/deactivate", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

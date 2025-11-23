@@ -15,9 +15,6 @@
 docker-compose up --build
 ```
 
-Сервис станет доступен на порту 8080.
-
-
 ## API
 
 ### Команды
@@ -98,23 +95,6 @@ curl -X POST http://localhost:8080/pullRequest/reassign \
     "old_user_id": "u2"
   }'
 ```
-
-
-## Структура
-
-```
-cmd/server/          # Запуск приложения
-internal/
-  domain/            # Модели данных
-  repository/        # Работа с БД
-  service/           # Бизнес-логика
-  handler/           # HTTP handlers
-  router/            # Роутинг
-  errors/            # Ошибки
-pkg/database/        # Подключение к БД
-migrations/          # SQL миграции
-```
-
 
 ## Как работает
 
@@ -237,3 +217,21 @@ make run
 docker-compose up -d postgres
 go test -v ./tests/integration/...
 ```
+
+## Линтер
+
+Проект настроен с golangci-lint
+
+```bash
+golangci-lint run
+```
+
+**Включенные проверки:**
+- `gosimple` - упрощение кода
+- `govet` - стандартный анализатор Go
+- `staticcheck` - статический анализ
+- `unused` - неиспользуемый код
+- `gofmt` - форматирование
+- `misspell` - опечатки
+- `gocyclo` - сложность функций
+- `gosec` - безопасность
