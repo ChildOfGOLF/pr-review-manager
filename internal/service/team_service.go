@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"pr-review-manager/internal/domain"
 	"pr-review-manager/internal/errors"
 	"pr-review-manager/internal/repository"
@@ -20,8 +22,8 @@ func NewTeamService(teamRepo *repository.TeamRepository, userRepo *repository.Us
 	}
 }
 
-func (s *TeamService) AddTeam(team *domain.Team) (*domain.Team, error) {
-	exists, err := s.teamRepo.TeamExists(team.TeamName)
+func (s *TeamService) AddTeam(ctx context.Context, team *domain.Team) (*domain.Team, error) {
+	exists, err := s.teamRepo.TeamExists(ctx, team.TeamName)
 	if err != nil {
 		return nil, err
 	}
@@ -29,13 +31,13 @@ func (s *TeamService) AddTeam(team *domain.Team) (*domain.Team, error) {
 		return nil, errors.ErrTeamExists
 	}
 
-	tx, err := s.teamRepo.BeginTx()
+	tx, err := s.teamRepo.BeginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	if err := s.teamRepo.CreateTeam(tx, team.TeamName); err != nil {
+	if err := s.teamRepo.CreateTeam(ctx, tx, team.TeamName); err != nil {
 		return nil, err
 	}
 
@@ -46,7 +48,7 @@ func (s *TeamService) AddTeam(team *domain.Team) (*domain.Team, error) {
 			TeamName: team.TeamName,
 			IsActive: member.IsActive,
 		}
-		if err := s.userRepo.UpsertUser(tx, user); err != nil {
+		if err := s.userRepo.UpsertUser(ctx, tx, user); err != nil {
 			return nil, err
 		}
 	}
@@ -55,11 +57,11 @@ func (s *TeamService) AddTeam(team *domain.Team) (*domain.Team, error) {
 		return nil, err
 	}
 
-	return s.teamRepo.GetTeam(team.TeamName)
+	return s.teamRepo.GetTeam(ctx, team.TeamName)
 }
 
-func (s *TeamService) GetTeam(teamName string) (*domain.Team, error) {
-	team, err := s.teamRepo.GetTeam(teamName)
+func (s *TeamService) GetTeam(ctx context.Context, teamName string) (*domain.Team, error) {
+	team, err := s.teamRepo.GetTeam(ctx, teamName)
 	if err != nil {
 		return nil, errors.ErrNotFound
 	}
@@ -68,21 +70,21 @@ func (s *TeamService) GetTeam(teamName string) (*domain.Team, error) {
 
 // DeactivateTeam массово деактивирует команду и безопасно переназначает открытые PR
 // Все операции выполняются атомарно в одной транзакции
-func (s *TeamService) DeactivateTeam(teamName string) (int, int, error) {
-	tx, err := s.teamRepo.BeginTx()
+func (s *TeamService) DeactivateTeam(ctx context.Context, teamName string) (int, int, error) {
+	tx, err := s.teamRepo.BeginTx(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
 	defer tx.Rollback()
 
-	deactivatedUserIDs, err := s.userRepo.DeactivateTeamUsers(tx, teamName)
+	deactivatedUserIDs, err := s.userRepo.DeactivateTeamUsers(ctx, tx, teamName)
 	if err != nil {
 		return 0, 0, err
 	}
 
 	affectedPRs := 0
 	if len(deactivatedUserIDs) > 0 {
-		prIDs, err := s.prRepo.GetOpenPRsWithDeactivatedReviewers(tx, deactivatedUserIDs)
+		prIDs, err := s.prRepo.GetOpenPRsWithDeactivatedReviewers(ctx, tx, deactivatedUserIDs)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -95,16 +97,16 @@ func (s *TeamService) DeactivateTeam(teamName string) (int, int, error) {
 		}
 
 		// Batch-удаление деактивированных ревьюверов
-		if err := s.prRepo.RemoveDeactivatedReviewersFromAllPRs(tx, deactivatedUserIDs); err != nil {
+		if err := s.prRepo.RemoveDeactivatedReviewersFromAllPRs(ctx, tx, deactivatedUserIDs); err != nil {
 			return 0, 0, err
 		}
 
-		prsMap, err := s.prRepo.GetPRsWithReviewers(tx, prIDs)
+		prsMap, err := s.prRepo.GetPRsWithReviewers(ctx, tx, prIDs)
 		if err != nil {
 			return 0, 0, err
 		}
 
-		allActiveUsers, err := s.userRepo.GetActiveUsers(tx)
+		allActiveUsers, err := s.userRepo.GetActiveUsers(ctx, tx)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -157,7 +159,7 @@ func (s *TeamService) DeactivateTeam(teamName string) (int, int, error) {
 			for i, a := range assignments {
 				batchAssignments[i] = struct{ PRID, UserID string }{PRID: a.PRID, UserID: a.UserID}
 			}
-			if err := s.prRepo.BatchAddReviewers(tx, batchAssignments); err != nil {
+			if err := s.prRepo.BatchAddReviewers(ctx, tx, batchAssignments); err != nil {
 				return 0, 0, err
 			}
 		}

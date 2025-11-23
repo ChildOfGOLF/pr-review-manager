@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -17,8 +18,8 @@ func NewPRRepository(db *sql.DB) *PRRepository {
 	return &PRRepository{db: db}
 }
 
-func (r *PRRepository) GetPRsByReviewer(userID string) ([]domain.PullRequestShort, error) {
-	rows, err := r.db.Query(`
+func (r *PRRepository) GetPRsByReviewer(ctx context.Context, userID string) ([]domain.PullRequestShort, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT DISTINCT pr.pull_request_id, pr.pull_request_name, pr.author_id, pr.status, pr.created_at
 		FROM pull_requests pr
 		JOIN pr_reviewers prr ON pr.pull_request_id = prr.pull_request_id
@@ -42,7 +43,7 @@ func (r *PRRepository) GetPRsByReviewer(userID string) ([]domain.PullRequestShor
 	return prs, nil
 }
 
-func (r *PRRepository) GetOpenPRsWithDeactivatedReviewers(tx *sql.Tx, deactivatedUserIDs []string) ([]string, error) {
+func (r *PRRepository) GetOpenPRsWithDeactivatedReviewers(ctx context.Context, tx *sql.Tx, deactivatedUserIDs []string) ([]string, error) {
 	if len(deactivatedUserIDs) == 0 {
 		return nil, nil
 	}
@@ -62,7 +63,7 @@ func (r *PRRepository) GetOpenPRsWithDeactivatedReviewers(tx *sql.Tx, deactivate
 		WHERE pr.status = $1 AND prr.user_id IN (%s)
 	`, strings.Join(placeholders, ","))
 
-	rows, err := tx.Query(query, args...)
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func (r *PRRepository) GetOpenPRsWithDeactivatedReviewers(tx *sql.Tx, deactivate
 	return prIDs, nil
 }
 
-func (r *PRRepository) RemoveReviewers(tx *sql.Tx, prID string, reviewerIDs []string) error {
+func (r *PRRepository) RemoveReviewers(ctx context.Context, tx *sql.Tx, prID string, reviewerIDs []string) error {
 	if len(reviewerIDs) == 0 {
 		return nil
 	}
@@ -97,11 +98,11 @@ func (r *PRRepository) RemoveReviewers(tx *sql.Tx, prID string, reviewerIDs []st
 		WHERE pull_request_id = $1 AND user_id IN (%s)
 	`, strings.Join(placeholders, ","))
 
-	_, err := tx.Exec(query, args...)
+	_, err := tx.ExecContext(ctx, query, args...)
 	return err
 }
 
-func (r *PRRepository) RemoveDeactivatedReviewersFromAllPRs(tx *sql.Tx, deactivatedUserIDs []string) error {
+func (r *PRRepository) RemoveDeactivatedReviewersFromAllPRs(ctx context.Context, tx *sql.Tx, deactivatedUserIDs []string) error {
 	if len(deactivatedUserIDs) == 0 {
 		return nil
 	}
@@ -121,12 +122,12 @@ func (r *PRRepository) RemoveDeactivatedReviewersFromAllPRs(tx *sql.Tx, deactiva
 		)
 	`, strings.Join(placeholders, ","))
 
-	_, err := tx.Exec(query, args...)
+	_, err := tx.ExecContext(ctx, query, args...)
 	return err
 }
 
-func (r *PRRepository) GetPRReviewers(tx *sql.Tx, prID string) ([]string, error) {
-	rows, err := tx.Query(`
+func (r *PRRepository) GetPRReviewers(ctx context.Context, tx *sql.Tx, prID string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `
 		SELECT user_id FROM pr_reviewers WHERE pull_request_id = $1
 	`, prID)
 	if err != nil {
@@ -145,12 +146,12 @@ func (r *PRRepository) GetPRReviewers(tx *sql.Tx, prID string) ([]string, error)
 	return reviewers, nil
 }
 
-func (r *PRRepository) GetPR(tx *sql.Tx, prID string) (*domain.PullRequest, error) {
+func (r *PRRepository) GetPR(ctx context.Context, tx *sql.Tx, prID string) (*domain.PullRequest, error) {
 	var pr domain.PullRequest
 	var createdAt time.Time
 	var mergedAt sql.NullTime
 
-	err := tx.QueryRow(`
+	err := tx.QueryRowContext(ctx, `
 		SELECT pull_request_id, pull_request_name, author_id, status, created_at, merged_at
 		FROM pull_requests
 		WHERE pull_request_id = $1
@@ -168,7 +169,7 @@ func (r *PRRepository) GetPR(tx *sql.Tx, prID string) (*domain.PullRequest, erro
 		pr.MergedAt = &mergedAt.Time
 	}
 
-	reviewers, err := r.GetPRReviewers(tx, prID)
+	reviewers, err := r.GetPRReviewers(ctx, tx, prID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,15 +178,15 @@ func (r *PRRepository) GetPR(tx *sql.Tx, prID string) (*domain.PullRequest, erro
 	return &pr, nil
 }
 
-func (r *PRRepository) CreatePR(pr *domain.PullRequest) error {
-	tx, err := r.db.Begin()
+func (r *PRRepository) CreatePR(ctx context.Context, pr *domain.PullRequest) error {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
 	createdAt := time.Now()
-	_, err = tx.Exec(`
+	_, err = tx.ExecContext(ctx, `
 		INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, created_at)
 		VALUES ($1, $2, $3, $4, $5)
 	`, pr.PullRequestID, pr.PullRequestName, pr.AuthorID, domain.StatusOpen, createdAt)
@@ -194,7 +195,7 @@ func (r *PRRepository) CreatePR(pr *domain.PullRequest) error {
 	}
 
 	for _, reviewerID := range pr.AssignedReviewers {
-		_, err = tx.Exec(`
+		_, err = tx.ExecContext(ctx, `
 			INSERT INTO pr_reviewers (pull_request_id, user_id)
 			VALUES ($1, $2)
 		`, pr.PullRequestID, reviewerID)
@@ -206,17 +207,17 @@ func (r *PRRepository) CreatePR(pr *domain.PullRequest) error {
 	return tx.Commit()
 }
 
-func (r *PRRepository) PRExists(prID string) (bool, error) {
+func (r *PRRepository) PRExists(ctx context.Context, prID string) (bool, error) {
 	var exists bool
-	err := r.db.QueryRow("SELECT EXISTS(SELECT 1 FROM pull_requests WHERE pull_request_id = $1)", prID).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM pull_requests WHERE pull_request_id = $1)", prID).Scan(&exists)
 	return exists, err
 }
 
-func (r *PRRepository) GetPRWithoutTx(prID string) (*domain.PullRequest, error) {
+func (r *PRRepository) GetPRWithoutTx(ctx context.Context, prID string) (*domain.PullRequest, error) {
 	var pr domain.PullRequest
 	var createdAt, mergedAt sql.NullTime
 
-	err := r.db.QueryRow(`
+	err := r.db.QueryRowContext(ctx, `
 		SELECT pull_request_id, pull_request_name, author_id, status, created_at, merged_at
 		FROM pull_requests
 		WHERE pull_request_id = $1
@@ -236,7 +237,7 @@ func (r *PRRepository) GetPRWithoutTx(prID string) (*domain.PullRequest, error) 
 		pr.MergedAt = &mergedAt.Time
 	}
 
-	rows, err := r.db.Query(`
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT user_id FROM pr_reviewers WHERE pull_request_id = $1
 	`, prID)
 	if err != nil {
@@ -255,9 +256,9 @@ func (r *PRRepository) GetPRWithoutTx(prID string) (*domain.PullRequest, error) 
 	return &pr, nil
 }
 
-func (r *PRRepository) MergePR(prID string) (*domain.PullRequest, error) {
+func (r *PRRepository) MergePR(ctx context.Context, prID string) (*domain.PullRequest, error) {
 	mergedAt := time.Now()
-	_, err := r.db.Exec(`
+	_, err := r.db.ExecContext(ctx, `
 		UPDATE pull_requests 
 		SET status = $2, merged_at = $3
 		WHERE pull_request_id = $1 AND status != $2
@@ -266,11 +267,11 @@ func (r *PRRepository) MergePR(prID string) (*domain.PullRequest, error) {
 		return nil, err
 	}
 
-	return r.GetPRWithoutTx(prID)
+	return r.GetPRWithoutTx(ctx, prID)
 }
 
-func (r *PRRepository) ReassignReviewer(prID, oldReviewerID, newReviewerID string) error {
-	_, err := r.db.Exec(`
+func (r *PRRepository) ReassignReviewer(ctx context.Context, prID, oldReviewerID, newReviewerID string) error {
+	_, err := r.db.ExecContext(ctx, `
 		UPDATE pr_reviewers 
 		SET user_id = $3
 		WHERE pull_request_id = $1 AND user_id = $2
@@ -278,15 +279,15 @@ func (r *PRRepository) ReassignReviewer(prID, oldReviewerID, newReviewerID strin
 	return err
 }
 
-func (r *PRRepository) AddReviewer(tx *sql.Tx, prID, userID string) error {
-	_, err := tx.Exec(`
+func (r *PRRepository) AddReviewer(ctx context.Context, tx *sql.Tx, prID, userID string) error {
+	_, err := tx.ExecContext(ctx, `
 		INSERT INTO pr_reviewers (pull_request_id, user_id)
 		VALUES ($1, $2)
 	`, prID, userID)
 	return err
 }
 
-func (r *PRRepository) BatchAddReviewers(tx *sql.Tx, assignments []struct{ PRID, UserID string }) error {
+func (r *PRRepository) BatchAddReviewers(ctx context.Context, tx *sql.Tx, assignments []struct{ PRID, UserID string }) error {
 	if len(assignments) == 0 {
 		return nil
 	}
@@ -305,11 +306,11 @@ func (r *PRRepository) BatchAddReviewers(tx *sql.Tx, assignments []struct{ PRID,
 		VALUES %s
 	`, strings.Join(valueStrings, ","))
 
-	_, err := tx.Exec(query, valueArgs...)
+	_, err := tx.ExecContext(ctx, query, valueArgs...)
 	return err
 }
 
-func (r *PRRepository) GetPRsWithReviewers(tx *sql.Tx, prIDs []string) (map[string]*domain.PullRequest, error) {
+func (r *PRRepository) GetPRsWithReviewers(ctx context.Context, tx *sql.Tx, prIDs []string) (map[string]*domain.PullRequest, error) {
 	if len(prIDs) == 0 {
 		return make(map[string]*domain.PullRequest), nil
 	}
@@ -327,7 +328,7 @@ func (r *PRRepository) GetPRsWithReviewers(tx *sql.Tx, prIDs []string) (map[stri
 		WHERE pull_request_id IN (%s)
 	`, strings.Join(placeholders, ","))
 
-	rows, err := tx.Query(query, args...)
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +358,7 @@ func (r *PRRepository) GetPRsWithReviewers(tx *sql.Tx, prIDs []string) (map[stri
 		WHERE pull_request_id IN (%s)
 	`, strings.Join(placeholders, ","))
 
-	reviewerRows, err := tx.Query(reviewerQuery, args...)
+	reviewerRows, err := tx.QueryContext(ctx, reviewerQuery, args...)
 	if err != nil {
 		return nil, err
 	}

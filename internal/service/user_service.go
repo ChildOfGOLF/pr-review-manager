@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"pr-review-manager/internal/domain"
 	"pr-review-manager/internal/errors"
 	"pr-review-manager/internal/repository"
@@ -18,8 +20,8 @@ func NewUserService(userRepo *repository.UserRepository, prRepo *repository.PRRe
 	}
 }
 
-func (s *UserService) SetIsActive(userID string, isActive bool) (*domain.User, error) {
-	user, err := s.userRepo.SetIsActive(userID, isActive)
+func (s *UserService) SetIsActive(ctx context.Context, userID string, isActive bool) (*domain.User, error) {
+	user, err := s.userRepo.SetIsActive(ctx, userID, isActive)
 	if err != nil {
 		return nil, err
 	}
@@ -29,8 +31,8 @@ func (s *UserService) SetIsActive(userID string, isActive bool) (*domain.User, e
 	return user, nil
 }
 
-func (s *UserService) GetReview(userID string) ([]domain.PullRequestShort, error) {
-	prs, err := s.prRepo.GetPRsByReviewer(userID)
+func (s *UserService) GetReview(ctx context.Context, userID string) ([]domain.PullRequestShort, error) {
+	prs, err := s.prRepo.GetPRsByReviewer(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

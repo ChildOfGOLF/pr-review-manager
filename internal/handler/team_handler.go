@@ -24,7 +24,7 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.teamService.AddTeam(&team)
+	result, err := h.teamService.AddTeam(r.Context(), &team)
 	if err != nil {
 		handleServiceError(w, err)
 		return
@@ -42,7 +42,7 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.teamService.GetTeam(teamName)
+	team, err := h.teamService.GetTeam(r.Context(), teamName)
 	if err != nil {
 		handleServiceError(w, err)
 		return
@@ -65,7 +65,7 @@ func (h *TeamHandler) DeactivateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deactivatedCount, affectedPRs, err := h.teamService.DeactivateTeam(req.TeamName)
+	deactivatedCount, affectedPRs, err := h.teamService.DeactivateTeam(r.Context(), req.TeamName)
 	if err != nil {
 		handleServiceError(w, err)
 		return

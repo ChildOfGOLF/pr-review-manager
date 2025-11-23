@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 
 	"pr-review-manager/internal/domain"
@@ -14,8 +15,8 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) UpsertUser(tx *sql.Tx, user *domain.User) error {
-	_, err := tx.Exec(`
+func (r *UserRepository) UpsertUser(ctx context.Context, tx *sql.Tx, user *domain.User) error {
+	_, err := tx.ExecContext(ctx, `
 		INSERT INTO users (user_id, username, team_name, is_active)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (user_id) 
@@ -24,9 +25,9 @@ func (r *UserRepository) UpsertUser(tx *sql.Tx, user *domain.User) error {
 	return err
 }
 
-func (r *UserRepository) GetUser(userID string) (*domain.User, error) {
+func (r *UserRepository) GetUser(ctx context.Context, userID string) (*domain.User, error) {
 	var user domain.User
-	err := r.db.QueryRow(`
+	err := r.db.QueryRowContext(ctx, `
 		SELECT user_id, username, team_name, is_active 
 		FROM users 
 		WHERE user_id = $1
@@ -41,9 +42,9 @@ func (r *UserRepository) GetUser(userID string) (*domain.User, error) {
 	return &user, nil
 }
 
-func (r *UserRepository) SetIsActive(userID string, isActive bool) (*domain.User, error) {
+func (r *UserRepository) SetIsActive(ctx context.Context, userID string, isActive bool) (*domain.User, error) {
 	var user domain.User
-	err := r.db.QueryRow(`
+	err := r.db.QueryRowContext(ctx, `
 		UPDATE users 
 		SET is_active = $2 
 		WHERE user_id = $1
@@ -59,8 +60,8 @@ func (r *UserRepository) SetIsActive(userID string, isActive bool) (*domain.User
 	return &user, nil
 }
 
-func (r *UserRepository) GetActiveTeamMembers(teamName, excludeUserID string) ([]domain.User, error) {
-	rows, err := r.db.Query(`
+func (r *UserRepository) GetActiveTeamMembers(ctx context.Context, teamName, excludeUserID string) ([]domain.User, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT user_id, username, team_name, is_active 
 		FROM users 
 		WHERE team_name = $1 AND is_active = true AND user_id != $2
@@ -81,8 +82,8 @@ func (r *UserRepository) GetActiveTeamMembers(teamName, excludeUserID string) ([
 	return users, nil
 }
 
-func (r *UserRepository) DeactivateTeamUsers(tx *sql.Tx, teamName string) ([]string, error) {
-	rows, err := tx.Query(`
+func (r *UserRepository) DeactivateTeamUsers(ctx context.Context, tx *sql.Tx, teamName string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `
 		UPDATE users 
 		SET is_active = false 
 		WHERE team_name = $1 AND is_active = true
@@ -104,8 +105,8 @@ func (r *UserRepository) DeactivateTeamUsers(tx *sql.Tx, teamName string) ([]str
 	return userIDs, nil
 }
 
-func (r *UserRepository) GetActiveUsers(tx *sql.Tx) ([]domain.User, error) {
-	rows, err := tx.Query(`
+func (r *UserRepository) GetActiveUsers(ctx context.Context, tx *sql.Tx) ([]domain.User, error) {
+	rows, err := tx.QueryContext(ctx, `
 		SELECT user_id, username, team_name, is_active 
 		FROM users 
 		WHERE is_active = true

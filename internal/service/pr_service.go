@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"math/rand"
 
 	"pr-review-manager/internal/domain"
@@ -20,8 +21,8 @@ func NewPRService(prRepo *repository.PRRepository, userRepo *repository.UserRepo
 	}
 }
 
-func (s *PRService) CreatePR(prID, prName, authorID string) (*domain.PullRequest, error) {
-	exists, err := s.prRepo.PRExists(prID)
+func (s *PRService) CreatePR(ctx context.Context, prID, prName, authorID string) (*domain.PullRequest, error) {
+	exists, err := s.prRepo.PRExists(ctx, prID)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +30,7 @@ func (s *PRService) CreatePR(prID, prName, authorID string) (*domain.PullRequest
 		return nil, errors.ErrPRExists
 	}
 
-	author, err := s.userRepo.GetUser(authorID)
+	author, err := s.userRepo.GetUser(ctx, authorID)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,7 @@ func (s *PRService) CreatePR(prID, prName, authorID string) (*domain.PullRequest
 		return nil, errors.ErrNotFound
 	}
 
-	candidates, err := s.userRepo.GetActiveTeamMembers(author.TeamName, authorID)
+	candidates, err := s.userRepo.GetActiveTeamMembers(ctx, author.TeamName, authorID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,15 +53,15 @@ func (s *PRService) CreatePR(prID, prName, authorID string) (*domain.PullRequest
 		AssignedReviewers: reviewers,
 	}
 
-	if err := s.prRepo.CreatePR(pr); err != nil {
+	if err := s.prRepo.CreatePR(ctx, pr); err != nil {
 		return nil, err
 	}
 
-	return s.prRepo.GetPRWithoutTx(prID)
+	return s.prRepo.GetPRWithoutTx(ctx, prID)
 }
 
-func (s *PRService) MergePR(prID string) (*domain.PullRequest, error) {
-	pr, err := s.prRepo.GetPRWithoutTx(prID)
+func (s *PRService) MergePR(ctx context.Context, prID string) (*domain.PullRequest, error) {
+	pr, err := s.prRepo.GetPRWithoutTx(ctx, prID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,11 +73,11 @@ func (s *PRService) MergePR(prID string) (*domain.PullRequest, error) {
 		return pr, nil
 	}
 
-	return s.prRepo.MergePR(prID)
+	return s.prRepo.MergePR(ctx, prID)
 }
 
-func (s *PRService) ReassignReviewer(prID, oldReviewerID string) (*domain.PullRequest, string, error) {
-	pr, err := s.prRepo.GetPRWithoutTx(prID)
+func (s *PRService) ReassignReviewer(ctx context.Context, prID, oldReviewerID string) (*domain.PullRequest, string, error) {
+	pr, err := s.prRepo.GetPRWithoutTx(ctx, prID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -99,7 +100,7 @@ func (s *PRService) ReassignReviewer(prID, oldReviewerID string) (*domain.PullRe
 		return nil, "", errors.ErrNotAssigned
 	}
 
-	oldReviewer, err := s.userRepo.GetUser(oldReviewerID)
+	oldReviewer, err := s.userRepo.GetUser(ctx, oldReviewerID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -107,7 +108,7 @@ func (s *PRService) ReassignReviewer(prID, oldReviewerID string) (*domain.PullRe
 		return nil, "", errors.ErrNotFound
 	}
 
-	candidates, err := s.userRepo.GetActiveTeamMembers(oldReviewer.TeamName, "")
+	candidates, err := s.userRepo.GetActiveTeamMembers(ctx, oldReviewer.TeamName, "")
 	if err != nil {
 		return nil, "", err
 	}
@@ -121,11 +122,11 @@ func (s *PRService) ReassignReviewer(prID, oldReviewerID string) (*domain.PullRe
 
 	newReviewer := filteredCandidates[rand.Intn(len(filteredCandidates))]
 
-	if err := s.prRepo.ReassignReviewer(prID, oldReviewerID, newReviewer.UserID); err != nil {
+	if err := s.prRepo.ReassignReviewer(ctx, prID, oldReviewerID, newReviewer.UserID); err != nil {
 		return nil, "", err
 	}
 
-	updatedPR, err := s.prRepo.GetPRWithoutTx(prID)
+	updatedPR, err := s.prRepo.GetPRWithoutTx(ctx, prID)
 	return updatedPR, newReviewer.UserID, err
 }
 

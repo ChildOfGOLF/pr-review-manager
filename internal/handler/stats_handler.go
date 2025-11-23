@@ -15,7 +15,7 @@ func NewStatsHandler(statsService *service.StatsService) *StatsHandler {
 }
 
 func (h *StatsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.statsService.GetStats()
+	stats, err := h.statsService.GetStats(r.Context())
 	if err != nil {
 		handleServiceError(w, err)
 		return

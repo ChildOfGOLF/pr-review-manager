@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 
 	"pr-review-manager/internal/domain"
@@ -14,10 +15,10 @@ func NewStatsRepository(db *sql.DB) *StatsRepository {
 	return &StatsRepository{db: db}
 }
 
-func (r *StatsRepository) GetStats() (*domain.Stats, error) {
+func (r *StatsRepository) GetStats(ctx context.Context) (*domain.Stats, error) {
 	stats := &domain.Stats{}
 
-	err := r.db.QueryRow(`
+	err := r.db.QueryRowContext(ctx, `
 		SELECT 
 			COUNT(*) as total,
 			SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END) as open,
@@ -28,13 +29,13 @@ func (r *StatsRepository) GetStats() (*domain.Stats, error) {
 		return nil, err
 	}
 
-	reviewerStats, err := r.getReviewerStats()
+	reviewerStats, err := r.getReviewerStats(ctx)
 	if err != nil {
 		return nil, err
 	}
 	stats.ReviewerStats = reviewerStats
 
-	prStats, err := r.getPRStats()
+	prStats, err := r.getPRStats(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +44,8 @@ func (r *StatsRepository) GetStats() (*domain.Stats, error) {
 	return stats, nil
 }
 
-func (r *StatsRepository) getReviewerStats() ([]domain.ReviewerStat, error) {
-	rows, err := r.db.Query(`
+func (r *StatsRepository) getReviewerStats(ctx context.Context) ([]domain.ReviewerStat, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			u.user_id,
 			u.username,
@@ -79,8 +80,8 @@ func (r *StatsRepository) getReviewerStats() ([]domain.ReviewerStat, error) {
 	return stats, nil
 }
 
-func (r *StatsRepository) getPRStats() ([]domain.PRStat, error) {
-	rows, err := r.db.Query(`
+func (r *StatsRepository) getPRStats(ctx context.Context) ([]domain.PRStat, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			pr.pull_request_id,
 			pr.pull_request_name,

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"pr-review-manager/internal/domain"
 	"pr-review-manager/internal/repository"
 )
@@ -15,6 +17,6 @@ func NewStatsService(statsRepo *repository.StatsRepository) *StatsService {
 	}
 }
 
-func (s *StatsService) GetStats() (*domain.Stats, error) {
-	return s.statsRepo.GetStats()
+func (s *StatsService) GetStats(ctx context.Context) (*domain.Stats, error) {
+	return s.statsRepo.GetStats(ctx)
 }

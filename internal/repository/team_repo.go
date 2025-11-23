@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -15,20 +16,20 @@ func NewTeamRepository(db *sql.DB) *TeamRepository {
 	return &TeamRepository{db: db}
 }
 
-func (r *TeamRepository) CreateTeam(tx *sql.Tx, teamName string) error {
-	_, err := tx.Exec("INSERT INTO teams (team_name) VALUES ($1)", teamName)
+func (r *TeamRepository) CreateTeam(ctx context.Context, tx *sql.Tx, teamName string) error {
+	_, err := tx.ExecContext(ctx, "INSERT INTO teams (team_name) VALUES ($1)", teamName)
 	return err
 }
 
-func (r *TeamRepository) TeamExists(teamName string) (bool, error) {
+func (r *TeamRepository) TeamExists(ctx context.Context, teamName string) (bool, error) {
 	var exists bool
-	err := r.db.QueryRow("SELECT EXISTS(SELECT 1 FROM teams WHERE team_name = $1)", teamName).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM teams WHERE team_name = $1)", teamName).Scan(&exists)
 	return exists, err
 }
 
-func (r *TeamRepository) GetTeam(teamName string) (*domain.Team, error) {
+func (r *TeamRepository) GetTeam(ctx context.Context, teamName string) (*domain.Team, error) {
 	var exists bool
-	err := r.db.QueryRow("SELECT EXISTS(SELECT 1 FROM teams WHERE team_name = $1)", teamName).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM teams WHERE team_name = $1)", teamName).Scan(&exists)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +37,7 @@ func (r *TeamRepository) GetTeam(teamName string) (*domain.Team, error) {
 		return nil, fmt.Errorf("team not found")
 	}
 
-	rows, err := r.db.Query(`
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT user_id, username, is_active 
 		FROM users 
 		WHERE team_name = $1
@@ -62,6 +63,6 @@ func (r *TeamRepository) GetTeam(teamName string) (*domain.Team, error) {
 	}, nil
 }
 
-func (r *TeamRepository) BeginTx() (*sql.Tx, error) {
-	return r.db.Begin()
+func (r *TeamRepository) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return r.db.BeginTx(ctx, nil)
 }
