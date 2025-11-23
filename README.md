@@ -29,8 +29,8 @@ curl -X POST http://localhost:8080/team/add \
   -d '{
     "team_name": "backend",
     "members": [
-      {"user_id": "u1", "username": "Alice", "is_active": true},
-      {"user_id": "u2", "username": "Bob", "is_active": true}
+      {"user_id": "u1", "username": "Vadim", "is_active": true},
+      {"user_id": "u2", "username": "Dasha", "is_active": true}
     ]
   }'
 ```
@@ -189,7 +189,7 @@ migrations/          # SQL миграции
 Применяются при старте приложения.
 
 ### Строковые ID
-Используются VARCHAR вместо числовых ID для гибкости при интеграции с GitHub/GitLab и другими системами.
+Используются VARCHAR вместо числовых ID для гибкости при интеграции с GitHub.
 
 ### Оптимизация массовой деактивации
 Для достижения производительности <100ms на средних объемах применены следующие методы:
@@ -227,4 +227,13 @@ export DB_NAME=pr_review_db
 export DB_SSLMODE=disable
 
 make run
+```
+
+## Тесты
+
+Есть простые интеграционные тесты, проверяющие основной флоу (создание команды, PR, деактивация).
+
+```bash
+docker-compose up -d postgres
+go test -v ./tests/integration/...
 ```
